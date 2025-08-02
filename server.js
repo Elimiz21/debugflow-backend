@@ -14,7 +14,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: ["http://localhost:5173", "http://localhost:3000"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
   }
 });
@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  origin: ["http://localhost:5173", "http://localhost:3000"],
   credentials: true
 }));
 
@@ -57,12 +57,49 @@ app.get('/api/v1/docs', (req, res) => {
   });
 });
 
+app.get('/api/v1/status', (req, res) => {
+  res.json({
+    message: 'DebugFlow Backend API is running!',
+    timestamp: new Date().toISOString()
+  });
+});
+
 io.on('connection', (socket) => {
   console.log(`✅ Client connected: ${socket.id}`);
   
   socket.on('join-project', (projectId) => {
     socket.join(`project-${projectId}`);
-    console.log(`📁 Client joined project ${projectId}`);
+    console.log(`📁 Client ${socket.id} joined project ${projectId}`);
+  });
+
+  socket.on('analyze-code', (data) => {
+    console.log('🔍 Code analysis request received:', data);
+    
+    // Simulate analysis processing
+    setTimeout(() => {
+      socket.emit('analysis-complete', {
+        analysisId: data.analysisId,
+        results: {
+          status: 'completed',
+          issues: [
+            {
+              type: 'warning',
+              line: 2,
+              message: 'Consider using const instead of let for variables that are not reassigned'
+            },
+            {
+              type: 'info', 
+              line: 1,
+              message: 'Function looks good! No major issues found.'
+            }
+          ],
+          suggestions: [
+            'Add error handling for edge cases',
+            'Consider adding JSDoc comments for better documentation'
+          ]
+        }
+      });
+    }, 2000);
   });
   
   socket.on('disconnect', () => {
@@ -72,8 +109,11 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, () => {
   console.log('\n🚀 DebugFlow Backend Server Started!');
+  console.log('================================');
   console.log(`📍 Server: http://localhost:${PORT}`);
   console.log(`💚 Health: http://localhost:${PORT}/health`);
+  console.log(`📚 Docs: http://localhost:${PORT}/api/v1/docs`);
+  console.log('================================\n');
 });
 
 export default app;
